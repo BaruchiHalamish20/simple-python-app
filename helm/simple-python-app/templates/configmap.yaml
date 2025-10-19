@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "simple-python-app.fullname" . }}
+  labels:
+    {{- include "simple-python-app.labels" . | nindent 4 }}
+data:
+  FLASK_ENV: {{ .Values.env.FLASK_ENV | quote }}
+  FLASK_APP: {{ .Values.env.FLASK_APP | quote }}
