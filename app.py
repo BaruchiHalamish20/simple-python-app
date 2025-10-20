@@ -16,6 +16,13 @@ def index():
 def student(name):
     return render_template('student.html', student_name=name)
 
+@app.route('/healthz')
+def healthz():
+    return jsonify({
+        "status": "healthy",
+        "message": "Application is running",
+        "timestamp": __import__('datetime').datetime.now().isoformat()
+    }), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
