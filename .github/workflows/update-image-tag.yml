@@ -74,7 +74,7 @@ jobs:
       - name: Checkout DevOps Repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.DEVOPS_REPO_TOKEN }}
           repository: BaruchiHalamish20/simple-python-app-devops
           ref: main
           path: devops-repo

@@ -140,26 +140,46 @@ The workflow requires the following GitHub secrets to be configured:
 1. **GITHUB_TOKEN** (Automatically provided)
    - GitHub automatically provides this token
    - No manual setup required
-   - Used for repository access and commits
+   - Used for building and pushing Docker images
 
-2. **ARGOCD_TOKEN** (Optional)
+2. **DEVOPS_REPO_TOKEN** (Required for cross-repo updates)
+   - Personal Access Token (PAT) with `repo` scope
+   - Required to push image tag updates to the DevOps repository
+   - See setup instructions below
+
+3. **ARGOCD_TOKEN** (Optional)
    - For triggering ArgoCD sync via API
    - Get from ArgoCD UI: User Settings → Account → Tokens
    - Add to repository secrets if you want automatic ArgoCD sync
 
 #### Setting Up Secrets
 
-1. **Go to Repository Settings**:
-   - Navigate to your GitHub repository
-   - Click **Settings** → **Secrets and variables** → **Actions**
+1. **Create a Personal Access Token (PAT)**:
+   - Go to GitHub → **Settings** → **Developer settings** → **Personal access tokens** → **Tokens (classic)**
+   - Click **Generate new token** → **Generate new token (classic)**
+   - Set a descriptive name: `DevOps Repo Access for CI/CD`
+   - Select scopes:
+     - ✅ `repo` (Full control of private repositories)
+   - Click **Generate token**
+   - **Copy the token immediately** (you won't see it again!)
 
-2. **Add Repository Secrets**:
+2. **Add Token to Repository Secrets**:
+   - Navigate to your `simple-python-app` repository
+   - Click **Settings** → **Secrets and variables** → **Actions**
+   - Click **New repository secret**
+   - Add:
+     ```
+     Name: DEVOPS_REPO_TOKEN
+     Value: <paste-your-PAT-here>
+     ```
+
+3. **Optional: Add ArgoCD Token**:
    ```
    Name: ARGOCD_TOKEN
    Value: <your-argocd-api-token>
    ```
 
-3. **Verify Secrets**:
+4. **Verify Secrets**:
    - Go to **Actions** → **Update Image Tag** → **Run workflow**
    - Check that secrets are available in the workflow
 
@@ -201,9 +221,11 @@ permissions:
    - Ensure `packages: write` permission is set in workflow
    - Check if image name conflicts exist
 
-3. **DevOps Repository Access**:
-   - Ensure the workflow can access the DevOps repository
-   - Verify repository name and organization in workflow file
+3. **DevOps Repository Access** (`Permission denied to github-actions[bot]`):
+   - This means `DEVOPS_REPO_TOKEN` is not set or is invalid
+   - Create a Personal Access Token with `repo` scope
+   - Add it as `DEVOPS_REPO_TOKEN` in repository secrets
+   - Ensure the token has access to both repositories
 
 4. **ArgoCD Sync Not Working**:
    - Check if `ARGOCD_TOKEN` is properly set
