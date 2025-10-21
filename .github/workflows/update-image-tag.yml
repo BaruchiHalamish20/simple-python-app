@@ -76,6 +76,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: BaruchiHalamish20/simple-python-app-devops
+          ref: main
           path: devops-repo
           fetch-depth: 0
 
