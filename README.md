@@ -21,12 +21,12 @@ A simple Flask web application that demonstrates basic routing and template rend
 
 1. Build the Docker image:
    ```bash
-   docker build -t simple-python-app .
+   docker build -t ghcr.io/baruchihalaish20/simple-python-app .
    ```
 
 2. Run the container:
    ```bash
-   docker run -p 5000:5000 simple-python-app
+   docker run -p 5000:5000 ghcr.io/baruchihalaish20/simple-python-app
    ```
 
 3. Access the application:
@@ -197,7 +197,8 @@ permissions:
    - Check repository settings for Actions permissions
 
 2. **Docker Push Failures**:
-   - Verify Docker Hub credentials or GitHub Container Registry access
+   - Verify GitHub Container Registry access (uses GITHUB_TOKEN)
+   - Ensure `packages: write` permission is set in workflow
    - Check if image name conflicts exist
 
 3. **DevOps Repository Access**:
@@ -238,10 +239,10 @@ The application includes a complete Helm chart for deploying to Kubernetes clust
 1. **Build and push your Docker image**:
    ```bash
    # Build the image
-   docker build -t your-registry/simple-python-app:latest .
+   docker build -t ghcr.io/your-username/simple-python-app:latest .
    
-   # Push to your registry
-   docker push your-registry/simple-python-app:latest
+   # Push to GitHub Container Registry
+   docker push ghcr.io/your-username/simple-python-app:latest
    ```
 
 2. **Deploy using Helm**:
@@ -252,7 +253,7 @@ The application includes a complete Helm chart for deploying to Kubernetes clust
    # Deploy the application
    helm install my-simple-app ./helm/simple-python-app \
      --namespace simple-python \
-     --set image.repository=your-registry/simple-python-app \
+     --set image.repository=ghcr.io/your-username/simple-python-app \
      --set image.tag=latest
    ```
 
@@ -272,7 +273,7 @@ For production, use additional configuration:
 ```bash
 helm install my-simple-app ./helm/simple-python-app \
   --namespace simple-python \
-  --set image.repository=your-registry/simple-python-app \
+  --set image.repository=ghcr.io/your-username/simple-python-app \
   --set replicaCount=3 \
   --set resources.limits.cpu=1000m \
   --set resources.limits.memory=1Gi \
