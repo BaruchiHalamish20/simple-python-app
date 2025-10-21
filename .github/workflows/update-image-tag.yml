@@ -1,0 +1,124 @@
+name: Update Image Tag
+
+on:
+  push:
+    branches: [main, cursor]
+    paths: 
+      - 'app.py'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - 'templates/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to update'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      image_tag:
+        description: 'Image tag to deploy (leave empty for current commit SHA)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  build-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Application Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get Image Tag
+        id: get_tag
+        run: |
+          if [ -n "${{ github.event.inputs.image_tag }}" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            simple-python-app:${{ steps.get_tag.outputs.tag }}
+            simple-python-app:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Checkout DevOps Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: BaruchiHalamish20/simple-python-app-devops
+          path: devops-repo
+          fetch-depth: 0
+
+      - name: Update Image Tags
+        run: |
+          ENV=${{ github.event.inputs.environment || 'dev' }}
+          TAG=${{ steps.get_tag.outputs.tag }}
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          echo "Updating $ENV environment with tag: $TAG"
+          
+          # Update kustomization.yaml
+          sed -i "s/newTag: .*/newTag: $TAG/" devops-repo/environments/$ENV/kustomization.yaml
+          
+          # Update image-tag.yaml
+          sed -i "s/IMAGE_TAG: \".*\"/IMAGE_TAG: \"$TAG\"/" devops-repo/environments/$ENV/image-tag.yaml
+          sed -i "s/LAST_UPDATED: \".*\"/LAST_UPDATED: \"$TIMESTAMP\"/" devops-repo/environments/$ENV/image-tag.yaml
+          
+          echo "Updated $ENV environment configuration"
+
+      - name: Update All Environments (if main branch)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          TAG=${{ steps.get_tag.outputs.tag }}
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          # Update all environments
+          for env in dev staging prod; do
+            echo "Updating $env environment with tag: $TAG"
+            sed -i "s/newTag: .*/newTag: $TAG/" devops-repo/environments/$env/kustomization.yaml
+            sed -i "s/IMAGE_TAG: \".*\"/IMAGE_TAG: \"$TAG\"/" devops-repo/environments/$env/image-tag.yaml
+            sed -i "s/LAST_UPDATED: \".*\"/LAST_UPDATED: \"$TIMESTAMP\"/" devops-repo/environments/$env/image-tag.yaml
+          done
+
+      - name: Commit and Push Changes to DevOps Repository
+        run: |
+          cd devops-repo
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add environments/
+          git commit -m "Update image tag to ${{ steps.get_tag.outputs.tag }} for ${{ github.event.inputs.environment || 'all' }} environment(s)
+
+          Triggered by: ${{ github.event.head_commit.message }}
+          Commit: ${{ github.sha }}
+          Author: ${{ github.actor }}"
+          git push
+
+      - name: Notify ArgoCD Sync (Optional)
+        if: env.ARGOCD_TOKEN != ''
+        run: |
+          echo "ArgoCD sync notification would be sent here"
+          # This would require ArgoCD API token and server URL
+          # curl -X POST \
+          #   -H "Authorization: Bearer ${{ secrets.ARGOCD_TOKEN }}" \
+          #   -H "Content-Type: application/json" \
+          #   "https://your-argocd-server.com/api/v1/applications/simple-python-app-${{ github.event.inputs.environment || 'dev' }}/sync"

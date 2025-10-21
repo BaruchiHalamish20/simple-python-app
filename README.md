@@ -58,6 +58,9 @@ simple-python/
 ├── requirements.txt      # Python dependencies
 ├── Dockerfile           # Docker configuration
 ├── .dockerignore        # Docker ignore file
+├── .github/
+│   └── workflows/
+│       └── update-image-tag.yml  # GitHub Actions CI/CD pipeline
 ├── helm/
 │   └── simple-python-app/    # Helm chart for Kubernetes deployment
 │       ├── Chart.yaml       # Chart metadata
@@ -92,6 +95,133 @@ The application is containerized and ready for deployment. The Dockerfile:
 - Installs dependencies from requirements.txt
 - Exposes port 5000
 - Runs the Flask application
+
+## GitHub Actions & GitOps
+
+The application includes automated CI/CD pipeline using GitHub Actions and ArgoCD for GitOps deployment.
+
+### Automated Workflow
+
+1. **Code Push** → Triggers GitHub Actions workflow
+2. **Docker Build** → Builds and pushes image with commit SHA1 tag
+3. **Update DevOps Repo** → Updates image tags in DevOps repository
+4. **ArgoCD Sync** → Automatically deploys to Kubernetes environments
+
+### Workflow Triggers
+
+The GitHub Actions workflow triggers on:
+- Push to `main` or `cursor` branches
+- Changes to: `app.py`, `requirements.txt`, `Dockerfile`, `templates/`
+- Manual workflow dispatch with environment selection
+
+### Environment Management
+
+- **Development**: Auto-deploy on any push
+- **Staging**: Auto-deploy on push to main branch
+- **Production**: Manual approval required
+
+### Manual Deployment
+
+You can manually trigger deployment for specific environments:
+
+```bash
+# Via GitHub Actions UI
+# Go to Actions → Update Image Tag → Run workflow
+# Select environment: dev, staging, or prod
+# Optionally specify custom image tag
+```
+
+### GitHub Secrets Setup
+
+The workflow requires the following GitHub secrets to be configured:
+
+#### Required Secrets
+
+1. **GITHUB_TOKEN** (Automatically provided)
+   - GitHub automatically provides this token
+   - No manual setup required
+   - Used for repository access and commits
+
+2. **ARGOCD_TOKEN** (Optional)
+   - For triggering ArgoCD sync via API
+   - Get from ArgoCD UI: User Settings → Account → Tokens
+   - Add to repository secrets if you want automatic ArgoCD sync
+
+#### Setting Up Secrets
+
+1. **Go to Repository Settings**:
+   - Navigate to your GitHub repository
+   - Click **Settings** → **Secrets and variables** → **Actions**
+
+2. **Add Repository Secrets**:
+   ```
+   Name: ARGOCD_TOKEN
+   Value: <your-argocd-api-token>
+   ```
+
+3. **Verify Secrets**:
+   - Go to **Actions** → **Update Image Tag** → **Run workflow**
+   - Check that secrets are available in the workflow
+
+#### Getting ArgoCD Token (Optional)
+
+```bash
+# Access ArgoCD UI
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+# Login to ArgoCD
+argocd login localhost:80
+
+# Create API token
+argocd account generate-token --account <username>
+```
+
+#### Workflow Permissions
+
+Ensure the workflow has the necessary permissions:
+
+```yaml
+# In .github/workflows/update-image-tag.yml
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+```
+
+#### Troubleshooting GitHub Actions
+
+**Common Issues:**
+
+1. **Permission Denied Errors**:
+   - Ensure `GITHUB_TOKEN` has proper permissions
+   - Check repository settings for Actions permissions
+
+2. **Docker Push Failures**:
+   - Verify Docker Hub credentials or GitHub Container Registry access
+   - Check if image name conflicts exist
+
+3. **DevOps Repository Access**:
+   - Ensure the workflow can access the DevOps repository
+   - Verify repository name and organization in workflow file
+
+4. **ArgoCD Sync Not Working**:
+   - Check if `ARGOCD_TOKEN` is properly set
+   - Verify ArgoCD server URL and token validity
+
+**Debug Steps:**
+
+```bash
+# Check workflow logs
+# Go to Actions → Update Image Tag → Click on failed run
+
+# Test repository access
+curl -H "Authorization: token $GITHUB_TOKEN" \
+  https://api.github.com/repos/BaruchiHalamish20/simple-python-app-devops
+
+# Verify ArgoCD connectivity
+curl -H "Authorization: Bearer $ARGOCD_TOKEN" \
+  https://your-argocd-server.com/api/v1/applications
+```
 
 ## Kubernetes Deployment with Helm
 
@@ -165,6 +295,41 @@ helm install my-simple-app ./helm/simple-python-app \
 - **Security**: Pod security contexts and non-root user
 
 For detailed Helm configuration options, see [helm/simple-python-app/README.md](helm/simple-python-app/README.md).
+
+## GitOps Architecture
+
+This application is part of a complete GitOps setup with automated CI/CD:
+
+### Repository Structure
+
+| Repository | Purpose | Contains |
+|------------|---------|----------|
+| **simple-python** | Application code | Source code, Dockerfile, GitHub Actions |
+| **simple-python-app-devops** | GitOps config | ArgoCD apps, Kustomize, image tags |
+
+### Workflow Overview
+
+```mermaid
+graph LR
+    A[Code Push] --> B[GitHub Actions]
+    B --> C[Docker Build]
+    C --> D[Update DevOps Repo]
+    D --> E[ArgoCD Sync]
+    E --> F[Kubernetes Deploy]
+```
+
+### Environment Strategy
+
+- **Development**: Auto-deploy on any push to `cursor` branch
+- **Staging**: Auto-deploy on push to `main` branch  
+- **Production**: Manual approval required
+
+### Related Repositories
+
+- **DevOps Repository**: [simple-python-app-devops](https://github.com/BaruchiHalamish20/simple-python-app-devops)
+  - Contains ArgoCD Application definitions
+  - Environment-specific Kustomize overlays
+  - Image tag management
 
 ## Example Usage
 
