@@ -21,6 +21,7 @@ def healthz():
     return jsonify({
         "status": "healthy",
         "message": "Application is running",
+        "version": "1.0.0",
         "timestamp": __import__('datetime').datetime.now().isoformat()
     }), 200
 
